@@ -42,13 +42,13 @@ func TestFetchProjectNotFound(t *testing.T) {
 
 func TestDiscoverUserProjects(t *testing.T) {
 	page := `<html><body>
-	  <a href="/project/gllm-inference-binary/">gllm-inference-binary</a>
-	  <a href="/project/gllm-core-binary/">gllm-core-binary</a>
-	  <a href="/project/gllm-inference-binary/">dup should dedupe</a>
+	  <a href="/project/sampleproject/">sampleproject</a>
+	  <a href="/project/pip/">pip</a>
+	  <a href="/project/sampleproject/">dup should dedupe</a>
 	  <a href="/help/">not a project</a>
 	</body></html>`
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/user/glx-sre/" {
+		if r.URL.Path != "/user/pypa/" {
 			http.NotFound(w, r)
 			return
 		}
@@ -57,11 +57,11 @@ func TestDiscoverUserProjects(t *testing.T) {
 	defer srv.Close()
 
 	c := &Client{BaseURL: srv.URL, HTTP: srv.Client()}
-	got, err := c.DiscoverUserProjects(context.Background(), "glx-sre")
+	got, err := c.DiscoverUserProjects(context.Background(), "pypa")
 	if err != nil {
 		t.Fatalf("DiscoverUserProjects: %v", err)
 	}
-	want := []string{"gllm-core-binary", "gllm-inference-binary"} // sorted, deduped
+	want := []string{"pip", "sampleproject"} // sorted, deduped
 	if len(got) != len(want) {
 		t.Fatalf("got %v, want %v", got, want)
 	}

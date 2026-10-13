@@ -33,31 +33,31 @@ go build -o pypi-du ./cmd/pypi-du
 Audit specific projects:
 
 ```bash
-pypi-du gllm-inference-binary gllm-core-binary
+pypi-du requests boto3
 ```
 
 Audit every project owned by a PyPI user:
 
 ```bash
-pypi-du --user glx-sre
+pypi-du --user pypa
 ```
 
 Show per-version breakdown (what to delete first):
 
 ```bash
-pypi-du --versions gllm-inference-binary
+pypi-du --versions numpy
 ```
 
 Flag everything at/over a threshold:
 
 ```bash
-pypi-du --user glx-sre --limit 8GB
+pypi-du --user pypa --limit 8GB
 ```
 
 JSON output (for scripting / dashboards):
 
 ```bash
-pypi-du --user glx-sre --json
+pypi-du --user pypa --json
 ```
 
 ### Flags

@@ -5,7 +5,7 @@
 //
 //	pypi-du <project> [<project>...]      audit specific projects
 //	pypi-du --user <pypi-user>            audit every project owned by a user
-//	pypi-du --user glx-sre --limit 8GB    flag projects over 8 GB
+//	pypi-du --user pypa --limit 8GB       flag projects over 8 GB
 //
 // Read-only: it only issues GET requests to pypi.org. It never deletes anything.
 package main
