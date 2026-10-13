@@ -22,25 +22,65 @@ import (
 	"github.com/michaelact/pypi-du/internal/pypi"
 )
 
-func main() {
-	var (
-		user     = flag.String("user", "", "audit every project owned by this PyPI user")
-		limitStr = flag.String("limit", "10GB", "flag projects whose total size meets or exceeds this (e.g. 10GB, 500MB)")
-		asJSON   = flag.Bool("json", false, "output JSON")
-		asBytes  = flag.Bool("bytes", false, "show raw byte counts instead of human-readable sizes")
-		perVer   = flag.Bool("versions", false, "show per-version breakdown for each project")
-		quiet    = flag.Bool("quiet", false, "only print the total size line per project")
-	)
-	flag.Usage = usage
-	flag.Parse()
+// options holds parsed CLI configuration.
+type options struct {
+	user     string
+	limitStr string
+	asJSON   bool
+	asBytes  bool
+	perVer   bool
+	quiet    bool
+	projects []string
+}
 
-	limit, err := pypi.ParseSize(*limitStr)
+// parseArgs parses flags that may be interspersed with positional arguments.
+//
+// Go's flag package stops at the first non-flag token, so "pkg --versions"
+// would otherwise treat "--versions" as a positional. We repeatedly parse the
+// remaining args, collecting positionals, until none are left — the standard
+// idiom for interspersed flags.
+func parseArgs(name string, args []string) (*options, error) {
+	fs := flag.NewFlagSet(name, flag.ContinueOnError)
+	fs.Usage = usage
+	opt := &options{}
+	fs.StringVar(&opt.user, "user", "", "audit every project owned by this PyPI user")
+	fs.StringVar(&opt.limitStr, "limit", "10GB", "flag projects whose total size meets or exceeds this (e.g. 10GB, 500MB)")
+	fs.BoolVar(&opt.asJSON, "json", false, "output JSON")
+	fs.BoolVar(&opt.asBytes, "bytes", false, "show raw byte counts instead of human-readable sizes")
+	fs.BoolVar(&opt.perVer, "versions", false, "show per-version breakdown for each project")
+	fs.BoolVar(&opt.quiet, "quiet", false, "only print the total size line per project")
+
+	rest := args
+	for len(rest) > 0 {
+		if err := fs.Parse(rest); err != nil {
+			return nil, err
+		}
+		rest = fs.Args()
+		if len(rest) == 0 {
+			break
+		}
+		// First leftover token is a genuine positional; consume it and
+		// re-parse the remainder so flags after it are still recognized.
+		opt.projects = append(opt.projects, rest[0])
+		rest = rest[1:]
+	}
+	return opt, nil
+}
+
+func main() {
+	opt, err := parseArgs(os.Args[0], os.Args[1:])
+	if err != nil {
+		// flag already printed the error + usage.
+		os.Exit(2)
+	}
+
+	limit, err := pypi.ParseSize(opt.limitStr)
 	if err != nil {
 		fatalf("invalid --limit: %v", err)
 	}
 
-	projects := flag.Args()
-	if *user == "" && len(projects) == 0 {
+	projects := opt.projects
+	if opt.user == "" && len(projects) == 0 {
 		usage()
 		os.Exit(2)
 	}
@@ -49,13 +89,13 @@ func main() {
 	defer cancel()
 	client := pypi.NewClient()
 
-	if *user != "" {
-		discovered, derr := client.DiscoverUserProjects(ctx, *user)
+	if opt.user != "" {
+		discovered, derr := client.DiscoverUserProjects(ctx, opt.user)
 		if derr != nil {
-			fatalf("discover projects for user %q: %v", *user, derr)
+			fatalf("discover projects for user %q: %v", opt.user, derr)
 		}
 		if len(discovered) == 0 {
-			fatalf("no projects found for user %q", *user)
+			fatalf("no projects found for user %q", opt.user)
 		}
 		projects = append(projects, discovered...)
 	}
@@ -77,10 +117,10 @@ func main() {
 		return results[i].TotalSize > results[j].TotalSize
 	})
 
-	if *asJSON {
+	if opt.asJSON {
 		printJSON(results, limit)
 	} else {
-		printText(results, limit, *asBytes, *perVer, *quiet)
+		printText(results, limit, opt.asBytes, opt.perVer, opt.quiet)
 	}
 
 	if failures > 0 {
